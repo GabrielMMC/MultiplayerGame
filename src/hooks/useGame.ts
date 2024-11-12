@@ -1,26 +1,12 @@
 import { useCallback, useState, useEffect, useRef } from "react";
-import LootBox from "../components/LootBox";
-import Wizard from "../roles/Role";
-
-interface Obstacle {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-}
+import Wizard from "../domain/roles/wizard/Wizard";
+import CommandKeys from "../types/CommandKeys";
+import Enemy from "../domain/Enemy";
 
 const useGame = () => {
-  const lootBox = new LootBox(200, 150);
   const selectedRole = new Wizard();
 
   const [isRunning, setIsRunning] = useState<boolean>(true);
-
-  const obstacle: Obstacle = {
-    x: 300,
-    y: 200,
-    width: 100,
-    height: 100,
-  };
 
   const animationFrameId = useRef<number | null>(null);
   const keysPressed = <Set<string>>new Set();
@@ -50,10 +36,11 @@ const useGame = () => {
 
   const update = () => {
     if (!isRunning) return;
-    // const player = player;
+
     keysPressed.forEach((key) => {
-      if (selectedRole.movieSet[key]) {
-        selectedRole.movieSet[key](); // Agora acessa a função correspondente de forma segura
+      const action = selectedRole.movieSet[key as CommandKeys];
+      if (action) {
+        action();
       }
     });
 
@@ -72,14 +59,16 @@ const useGame = () => {
   // };
 
   const render = useCallback(
-    (context: CanvasRenderingContext2D) => {
+    (context: CanvasRenderingContext2D, enemy: Enemy) => {
       selectedRole.renderPlayer(context);
+      enemy.renderEnemy(context);
+
       selectedRole.getCurrentWeapon().renderAtack(context);
 
-      context.fillStyle = "grey";
-      context.fillRect(obstacle.x, obstacle.y, obstacle.width, obstacle.height);
+      // context.fillStyle = "grey";
+      // context.fillRect(obstacle.x, obstacle.y, obstacle.width, obstacle.height);
 
-      lootBox.render(context);
+      // lootBox.render(context);
     },
     [selectedRole]
   );
@@ -92,7 +81,14 @@ const useGame = () => {
     };
   }, []);
 
-  return { startGame, update, render };
+  return {
+    startGame,
+    update,
+    render,
+    getPlayerData: () => {
+      return { x: selectedRole.xPos, y: selectedRole.yPos };
+    },
+  };
 };
 
 export default useGame;

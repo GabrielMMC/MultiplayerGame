@@ -1,41 +1,62 @@
-// src/components/GameCanvas.tsx
-import React, { useRef, useEffect } from 'react';
-import useGame from '../hooks/useGame';
+import { useRef, useEffect } from "react";
+import { useEcho } from "../context/EchoContext";
+import useGame from "../hooks/useGame";
+import Enemy from "../domain/Enemy";
 
-const GameCanvas: React.FC = () => {
+const GameCanvas = ({ roomId }: { roomId: string }) => {
+  const { startGame, update, render, getPlayerData } = useGame();
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const { startGame, update, render } = useGame();
+  const { echo } = useEcho();
+  const enemy = new Enemy();
+
+  useEffect(() => {
+    if (!roomId || !echo) return;
+
+    echo
+      .private(`Game.Room.${roomId}`)
+      .listenForWhisper(".update.game", (data: any) => {
+        enemy.updateEnemy(data.enemyData);
+      });
+
+    const intervalId = setInterval(() => {
+      echo.private(`Game.Room.${roomId}`).whisper(".update.game", {
+        roomId,
+        playerId: 1,
+        enemyData: getPlayerData(),
+      });
+      console.log("whisper", getPlayerData());
+    }, 1);
+
+    return () => {
+      echo.leave(`Game.Room.${roomId}`);
+      clearInterval(intervalId);
+    };
+  }, [roomId]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
-    const context = canvas?.getContext('2d');
-
-    if (context) {
-      // Iniciar o jogo
+    const context = canvas?.getContext("2d");
+    if (context && enemy) {
       startGame();
 
-      // Loop de atualização e renderização
       const gameLoop = () => {
         update();
-        render(context);
+        render(context, enemy);
         requestAnimationFrame(gameLoop);
       };
 
       gameLoop();
 
-      // Cleanup
-      return () => {
-        // cancelAnimationFrame(gameLoop);
-      };
+      return () => {};
     }
-  }, [startGame, update, render]);
+  }, [roomId, enemy]);
 
   return (
     <canvas
       ref={canvasRef}
       width={800}
       height={600}
-      style={{ border: '1px solid black' }}
+      style={{ border: "1px solid black" }}
     />
   );
 };
